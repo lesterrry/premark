@@ -1,15 +1,16 @@
 <?php
+
 ini_set('display_errors', 1);
 $rec = file_get_contents('php://input');
 $data = json_decode($rec, true);
 
 if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
-	exit();
+	exit(1);
 }
 
 $text = $data['message']['text'];
 $user = $data['message']['chat']['id'];
-define('TOKEN', '5864116167:AAG5ghXa50RI9Dm2_uhcmZMQVQ-hhv9Ei64');
+define('TOKEN', '5872002901:AAEISDbqEDYjJPGzuof_Vct8tCUvkbJzVDk');
 define('CLOSING', "\n❇️Подписывайся на канал: @cockhunter");
 define('TEXT', $data['message']['text']);
 define('SENDER', $data['message']['chat']['id']);
@@ -58,25 +59,47 @@ function check($id) {
 	}
 }
 
-function exceptions_error_handler($severity, $message, $filename, $lineno) {
+function getName($data) {
+	$first = 'No first';
+	$last = 'No last';
+	if (isset($data['message']['chat']['first_name'])) {
+		$first = $data['message']['chat']['first_name'];
+	}
+	if (isset($data['message']['chat']['last_name'])) {
+                $first = $data['message']['chat']['last_name'];
+        }
+	return $first . ' ' . $last;
+}
+
+function getUsername($data) {
+	$username = 'No username';
+	if (isset($data['message']['chat']['username'])) {
+		$username = $data['message']['chat']['username'];
+	}
+	return $username;
+}
+
+function errorHandler($severity, $message, $filename, $lineno) {
 	q('Error: ' . $message . ' @' . $lineno);
         throw new ErrorException($message, 0, $severity, $filename, $lineno);
 }
-set_error_handler('exceptions_error_handler', E_ALL);
 
-$db = new SQLite3('/var/www/premark_core/db.db');
-$s = $db->prepare('SELECT act FROM interactions WHERE id = :id;');
+set_error_handler('errorHandler', E_ALL);
+
+$db = new SQLite3('/var/www/premark_core/db_new.db');
+$s = $db->prepare('SELECT * FROM interactions WHERE id = :id');
 $s->bindValue(':id', SENDER);
-$act = $s->execute();
-$act = $act->fetchArray()[0];
+$entry = $s->execute();
+$entry = $entry->fetchArray();
 
 if (TEXT == '/start') {
 	q('Привет! Я помогу узнать предварительную оценку проекта. Отправь ссылку на проект в формате https://portfolio.hse.ru/Project/159642');
 } else if (TEXT == '/recheck') {
+	$act = $entry->fetchArray()[0];
 	if (is_null($act)) {
 		q('Проект пока не проверялся');
 	} else {
-	check($act);
+		check($act);
 	}
 } else {
 	$split = explode('/', TEXT);
@@ -85,9 +108,21 @@ if (TEXT == '/start') {
 	} else {
 		$id = end($split);
 		check($id);
-		$s = $db->prepare('REPLACE INTO interactions(id, act) VALUES(:id, :act);');
-		$s->bindValue(':id', SENDER);
-		$s->bindValue(':act', $id);
-		$s->execute();
+		if ($entry == false) {
+			$s = $db->prepare('INSERT INTO interactions VALUES(:id, :act, :name, :username, :checks_total)');
+			$s->bindValue(':id', SENDER);
+			$s->bindValue(':act', $id);
+			$s->bindValue(':name', getName($data));
+			$s->bindValue(':username', getUsername($data));
+			$s->bindValue(':checks_total', 0);
+			$s->execute();
+		} else {
+			$s = $db->prepare('UPDATE interactions SET act = :act, name = :name, username = :username, checks_total = checks_total + 1 WHERE id = :id');
+			$s->bindValue(':id', SENDER);
+			$s->bindValue(':act', $id);
+			$s->bindValue(':name', getName($data));
+			$s->bindValue(':username', getUsername($data));
+			$s->execute();
+		}
 	}
 }
