@@ -95,7 +95,7 @@ $entry = $entry->fetchArray();
 if (TEXT == '/start') {
 	q('Привет! Я помогу узнать предварительную оценку проекта. Отправь ссылку на проект в формате https://portfolio.hse.ru/Project/159642');
 } else if (TEXT == '/recheck') {
-	$act = $entry->fetchArray()[0];
+	$act = $entry[1];
 	if (is_null($act)) {
 		q('Проект пока не проверялся');
 	} else {
