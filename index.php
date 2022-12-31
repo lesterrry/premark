@@ -59,6 +59,11 @@ function check($id, $entry, $db, $input) {
 				q($data['title'] . "\nОценка недоступна");
 			} else {
 				q($data['title'] . "\nОценка: *" . $data['totalMark'] . "*\n\n" . CLOSING[array_rand(CLOSING)]);
+				$s = $db->prepare('replace into projects(id, mark, title) values(:id, :mark, :title)');
+				$s->bindValue(':id', $id);
+				$s->bindValue(':mark', $data['totalMark']);
+				$s->bindValue(':title', $data['title']);
+				$s->execute();
 			}
 		}
 	}
