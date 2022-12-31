@@ -45,7 +45,15 @@ function q($text, $die=false) {
 function check($id, $entry, $db, $input) {
 	$checks = $entry[5];
 	if (!is_null($checks) && $checks > 9) {
-		q('Достигнуто максимальное количество проверок. Попробуй снова через час', true);
+		$s = $db->prepare('SELECT mark FROM projects WHERE id = :id');
+		$s->bindValue(':id', $id);
+		$entry = $s->execute();
+		$mark = $entry->fetchArray()[0];
+		$m = '';
+		if (!is_null($mark)) {
+			$m = "\nПоследняя записанная оценка за этот проект: *" . $mark . "*";
+		}
+		q('Достигнуто максимальное количество проверок. Попробуй снова через час.' . $m, true);
 	}
 	$link = 'https://portfolio.hse.ru/Project/ProjectDataForViewer?userProjectId=' . $id;
 	$data = json_decode(file_get_contents($link), true);
@@ -55,14 +63,16 @@ function check($id, $entry, $db, $input) {
 		if (!isset($data['title'])) {
 			q('Не удалось получить проект', true);
 		} else {
-			if (!isset($data['totalMark'])) {
-				q($data['title'] . "\nОценка недоступна");
+			$title = html_entity_decode($data['title']);
+			$mark = $data['totalMark'];
+			if (is_null($mark)) {
+				q($title . "\nОценка недоступна");
 			} else {
-				q($data['title'] . "\nОценка: *" . $data['totalMark'] . "*\n\n" . CLOSING[array_rand(CLOSING)]);
+				q($title . "\nОценка: *" . $mark . "*\n\n_" . CLOSING[array_rand(CLOSING)] . "_");
 				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author) VALUES(:id, :mark, :title, :author)');
 				$s->bindValue(':id', $id);
-				$s->bindValue(':mark', $data['totalMark']);
-				$s->bindValue(':title', $data['title']);
+				$s->bindValue(':mark', $mark);
+				$s->bindValue(':title', $title);
 				$s->bindValue(':author', $data['authors'][0]['name']);
 				$s->execute();
 			}
@@ -119,6 +129,13 @@ $s = $db->prepare('SELECT * FROM interactions WHERE id = :id');
 $s->bindValue(':id', SENDER);
 $entry = $s->execute();
 $entry = $entry->fetchArray();
+
+$s = $db->prepare('insert or ignore into stats values(:date, 1)');
+$s->bindValue(':date', date('Y-m-d'));
+$s->execute();
+$s = $db->prepare('update stats set actions = actions + 1 where date = :date');
+$s->bindValue(':date', date('Y-m-d'));
+$s->execute();
 
 if (TEXT == '/start') {
 	q('Привет! Я помогу узнать предварительную оценку проекта. Отправь ссылку на проект в формате https://portfolio.hse.ru/Project/159642');
