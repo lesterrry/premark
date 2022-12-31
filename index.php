@@ -69,11 +69,15 @@ function check($id, $entry, $db, $input) {
 				q($title . "\nОценка недоступна");
 			} else {
 				q($title . "\nОценка: *" . $mark . "*\n\n_" . CLOSING[array_rand(CLOSING)] . "_");
-				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author) VALUES(:id, :mark, :title, :author)');
+				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author, group_name, course, year, module) VALUES(:id, :mark, :title, :author, :group_name, :course, :year, :module)');
 				$s->bindValue(':id', $id);
 				$s->bindValue(':mark', $mark);
 				$s->bindValue(':title', $title);
 				$s->bindValue(':author', $data['authors'][0]['name']);
+				$s->bindValue(':group_name', $data['groupName']);
+				$s->bindValue(':course', $data['courseNum']);
+				$s->bindValue(':year', $data['academicYearStr']);
+				$s->bindValue(':module', html_entity_decode($data['moduleName']));
 				$s->execute();
 			}
 		}
