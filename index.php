@@ -1,6 +1,9 @@
 <?php
 
 ini_set('display_errors', 1);
+
+require __DIR__ . "/secure.php";
+
 $rec = file_get_contents('php://input');
 $data = json_decode($rec, true);
 
@@ -10,8 +13,6 @@ if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
 
 $text = $data['message']['text'];
 $user = $data['message']['chat']['id'];
-define('TOKEN', '5872002901:AAEISDbqEDYjJPGzuof_Vct8tCUvkbJzVDk');
-define('CLOSING', "\n❇️Подписывайся на канал: @cockhunter");
 define('TEXT', $data['message']['text']);
 define('SENDER', $data['message']['chat']['id']);
 
@@ -41,7 +42,11 @@ function q($text, $die=false) {
 	}
 }
 
-function check($id) {
+function check($id, $entry, $db, $input) {
+	$checks = $entry[5];
+	if (!is_null($checks) && $checks > 9) {
+		q('Достигнуто максимальное количество проверок. Попробуй снова через час', true);
+	}
 	$link = 'https://portfolio.hse.ru/Project/ProjectDataForViewer?userProjectId=' . $id;
 	$data = json_decode(file_get_contents($link), true);
 	if ($data == null) {
@@ -53,9 +58,26 @@ function check($id) {
 			if (!isset($data['totalMark'])) {
 				q($data['title'] . "\nОценка недоступна");
 			} else {
-				q($data['title'] . "\nОценка: " . $data['totalMark'] . CLOSING);
+				q($data['title'] . "\nОценка: *" . $data['totalMark'] . "*\n\n" . CLOSING[array_rand(CLOSING)]);
 			}
 		}
+	}
+	if ($entry == false) {
+		$s = $db->prepare('INSERT INTO interactions VALUES(:id, :act, :name, :username, :checks_total, :checks_last_hour)');
+		$s->bindValue(':id', SENDER);
+		$s->bindValue(':act', $id);
+		$s->bindValue(':name', getName($input));
+		$s->bindValue(':username', getUsername($input));
+		$s->bindValue(':checks_total', 1);
+		$s->bindValue(':checks_last_hour', 1);
+		$s->execute();
+	} else {
+		$s = $db->prepare('UPDATE interactions SET act = :act, name = :name, username = :username, checks_total = checks_total + 1, checks_last_hour = checks_last_hour + 1 WHERE id = :id');
+		$s->bindValue(':id', SENDER);
+		$s->bindValue(':act', $id);
+		$s->bindValue(':name', getName($input));
+		$s->bindValue(':username', getUsername($input));
+		$s->execute();
 	}
 }
 
@@ -66,7 +88,7 @@ function getName($data) {
 		$first = $data['message']['chat']['first_name'];
 	}
 	if (isset($data['message']['chat']['last_name'])) {
-                $first = $data['message']['chat']['last_name'];
+                $last = $data['message']['chat']['last_name'];
         }
 	return $first . ' ' . $last;
 }
@@ -99,7 +121,7 @@ if (TEXT == '/start') {
 	if (is_null($act)) {
 		q('Проект пока не проверялся');
 	} else {
-		check($act);
+		check($act, $entry, $db, $data);
 	}
 } else {
 	$split = explode('/', TEXT);
@@ -107,22 +129,6 @@ if (TEXT == '/start') {
 		q('Не похоже на ссылку');
 	} else {
 		$id = end($split);
-		check($id);
-		if ($entry == false) {
-			$s = $db->prepare('INSERT INTO interactions VALUES(:id, :act, :name, :username, :checks_total)');
-			$s->bindValue(':id', SENDER);
-			$s->bindValue(':act', $id);
-			$s->bindValue(':name', getName($data));
-			$s->bindValue(':username', getUsername($data));
-			$s->bindValue(':checks_total', 0);
-			$s->execute();
-		} else {
-			$s = $db->prepare('UPDATE interactions SET act = :act, name = :name, username = :username, checks_total = checks_total + 1 WHERE id = :id');
-			$s->bindValue(':id', SENDER);
-			$s->bindValue(':act', $id);
-			$s->bindValue(':name', getName($data));
-			$s->bindValue(':username', getUsername($data));
-			$s->execute();
-		}
+		check($id, $entry, $db, $data);
 	}
 }
