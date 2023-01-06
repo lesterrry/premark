@@ -11,8 +11,6 @@ if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
 	exit(1);
 }
 
-$text = $data['message']['text'];
-$user = $data['message']['chat']['id'];
 define('TEXT', $data['message']['text']);
 define('SENDER', $data['message']['chat']['id']);
 
