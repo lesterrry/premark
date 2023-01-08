@@ -66,7 +66,7 @@ function check($id, $entry, $db, $input) {
 			if (is_null($mark)) {
 				q($title . "\nОценка недоступна");
 			} else {
-				q($title . "\nОценка: *" . $mark . "*\n\n_" . CLOSING[array_rand(CLOSING)] . "_");
+				q($title . "\nОценка: *" . $mark . "*\n\n_" . get_closing($db) . "_");
 				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author, group_name, course, year, module) VALUES(:id, :mark, :title, :author, :group_name, :course, :year, :module)');
 				$s->bindValue(':id', $id);
 				$s->bindValue(':mark', $mark);
@@ -96,6 +96,24 @@ function check($id, $entry, $db, $input) {
 		$s->bindValue(':name', getName($input));
 		$s->bindValue(':username', getUsername($input));
 		$s->execute();
+	}
+}
+
+function get_closing($db) {
+	$entry = CLOSING[array_rand(CLOSING)];
+	if (is_array($entry)) {
+		$ret = $entry[0];
+		foreach ($entry[1] as &$i) {
+			$result = $db->query($i);
+			$res = $result->fetchArray()[0];
+			$pos = strpos($ret, '$');
+			if ($pos !== false) {
+				$ret = substr_replace($ret, $res, $pos, 1);
+			}
+		}
+		return $ret;
+	} else {
+		return $entry;
 	}
 }
 
