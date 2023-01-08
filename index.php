@@ -6,14 +6,8 @@ require __DIR__ . "/secure.php";
 
 $rec = file_get_contents('php://input');
 $data = json_decode($rec, true);
-
-if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
-	exit(1);
-}
-
-define('TEXT', $data['message']['text']);
-define('SENDER', $data['message']['chat']['id']);
-
+//file_put_contents('/var/www/html/api/test/temp.txt', $rec);
+//exit();
 function sendTelegram($method, $response) {
 	$ch = curl_init('https://api.telegram.org/bot' . TOKEN . '/' . $method);
 	curl_setopt($ch, CURLOPT_POST, 1);
@@ -25,11 +19,11 @@ function sendTelegram($method, $response) {
 	return $res;
 }
 
-function q($text, $die=false) {
+function q($text, $die=false, $fwd_to_admin=false) {
 	sendTelegram(
 		'sendMessage',
 		array(
-			'chat_id' => SENDER,
+			'chat_id' => $fwd_to_admin ? ADMIN : SENDER,
 			'text' => $text,
 			'parse_mode' => 'Markdown',
 			'disable_web_page_preview' => true
@@ -38,6 +32,18 @@ function q($text, $die=false) {
 	if ($die) {
 		exit(0);
 	}
+}
+
+function qPoll() {
+	sendTelegram(
+		'sendPoll',
+		array(
+			'chat_id' => SENDER,
+			'question' => POLL[0],
+			'options' => json_encode(POLL[1]),
+			'is_anonymous' => false
+		)
+	);
 }
 
 function check($id, $entry, $db, $input) {
@@ -66,7 +72,7 @@ function check($id, $entry, $db, $input) {
 			if (is_null($mark)) {
 				q($title . "\nОценка недоступна");
 			} else {
-				q($title . "\nОценка: *" . $mark . "*\n\n_" . get_closing($db) . "_");
+				q($title . "\nОценка: *" . $mark . "*\n\n_" . getClosing($db) . "_");
 				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author, group_name, course, year, module) VALUES(:id, :mark, :title, :author, :group_name, :course, :year, :module)');
 				$s->bindValue(':id', $id);
 				$s->bindValue(':mark', $mark);
@@ -99,7 +105,7 @@ function check($id, $entry, $db, $input) {
 	}
 }
 
-function get_closing($db) {
+function getClosing($db) {
 	$entry = CLOSING[array_rand(CLOSING)];
 	if (is_array($entry)) {
 		$ret = $entry[0];
@@ -138,13 +144,32 @@ function getUsername($data) {
 }
 
 function errorHandler($severity, $message, $filename, $lineno) {
-	q('Error: ' . $message . ' @' . $lineno);
+	q('Error: ' . $message . ' @' . $lineno, false, true);
         throw new ErrorException($message, 0, $severity, $filename, $lineno);
 }
 
 set_error_handler('errorHandler', E_ALL);
 
 $db = new SQLite3('/var/www/premark_core/db_new.db');
+
+if (!empty($data['poll_answer'])) {
+	$answer = $data['poll_answer'];
+	if (count($answer['option_ids']) === 1) {
+		$s = $db->prepare('REPLACE INTO poll_votes(chat_id, question, answer) VALUES(:chat_id, :question, :answer)');
+		$s->bindValue(':chat_id', $answer['user']['id']);
+		$s->bindValue(':question', POLL[0]);
+		$s->bindValue(':answer', POLL[1][$answer['option_ids'][0]]);
+		$s->execute();
+	}
+	exit(0);
+}
+
+if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
+	exit(1);
+}
+define('SENDER', $data['message']['chat']['id']);
+define('TEXT', $data['message']['text']);
+
 $s = $db->prepare('SELECT * FROM interactions WHERE id = :id');
 $s->bindValue(':id', SENDER);
 $entry = $s->execute();
@@ -159,6 +184,8 @@ $s->execute();
 
 if (TEXT == '/start') {
 	q('Привет! Я помогу узнать предварительную оценку проекта. Отправь ссылку на проект в формате https://portfolio.hse.ru/Project/159642');
+} else if (TEXT == '/poll') {
+	qPoll(POLL[0], POLL[1]);
 } else if (TEXT == '/recheck') {
 	$act = $entry[1];
 	if (is_null($act)) {
