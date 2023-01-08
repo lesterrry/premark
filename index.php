@@ -199,6 +199,9 @@ if (TEXT == '/start') {
 		q('Не похоже на ссылку');
 	} else {
 		$id = end($split);
+		if (strpos($id, '#') !== false) {
+			$id = explode('#', $id)[0];
+		}
 		check($id, $entry, $db, $data);
 	}
 }
