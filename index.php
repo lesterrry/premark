@@ -72,7 +72,7 @@ function check($id, $entry, $db, $input) {
 			if (is_null($mark)) {
 				q($title . "\nОценка недоступна");
 			} else {
-				q($title . "\nОценка: *" . $mark . "*\n\n_" . getClosing($db) . "_");
+				q($title . "\nОценка: *" . $mark . "*\n\n" . getClosing($db));
 				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author, group_name, course, year, module) VALUES(:id, :mark, :title, :author, :group_name, :course, :year, :module)');
 				$s->bindValue(':id', $id);
 				$s->bindValue(':mark', $mark);
