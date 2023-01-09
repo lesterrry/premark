@@ -1,12 +1,12 @@
 <?php
 
-ini_set('display_errors', 1);
+//ini_set('display_errors', 1);
 
 require __DIR__ . "/secure.php";
 
 $rec = file_get_contents('php://input');
 $data = json_decode($rec, true);
-//file_put_contents('/var/www/html/api/test/temp.txt', $rec);
+//file_put_contents('/var/www/html/api/premark/temp.txt', $rec);
 //exit();
 function sendTelegram($method, $response) {
 	$ch = curl_init('https://api.telegram.org/bot' . TOKEN . '/' . $method);
@@ -19,11 +19,11 @@ function sendTelegram($method, $response) {
 	return $res;
 }
 
-function q($text, $die=false, $fwd_to_admin=false) {
+function q($text, $die=false, $force_to=false) {
 	sendTelegram(
 		'sendMessage',
 		array(
-			'chat_id' => $fwd_to_admin ? ADMIN : SENDER,
+			'chat_id' => $force_to === false ? SENDER : $force_to,
 			'text' => $text,
 			'parse_mode' => 'Markdown',
 			'disable_web_page_preview' => true
@@ -144,7 +144,7 @@ function getUsername($data) {
 }
 
 function errorHandler($severity, $message, $filename, $lineno) {
-	q('Error: ' . $message . ' @' . $lineno, false, true);
+	q('Error: ' . $message . ' @' . $lineno, false, ADMIN);
         throw new ErrorException($message, 0, $severity, $filename, $lineno);
 }
 
@@ -160,6 +160,7 @@ if (!empty($data['poll_answer'])) {
 		$s->bindValue(':question', POLL[0]);
 		$s->bindValue(':answer', POLL[1][$answer['option_ids'][0]]);
 		$s->execute();
+		q('Спасибо!', false, $answer['user']['id']);
 	}
 	exit(0);
 }
