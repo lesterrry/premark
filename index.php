@@ -144,7 +144,9 @@ function getUsername($data) {
 }
 
 function errorHandler($severity, $message, $filename, $lineno) {
-	q('Error: ' . $message . ' @' . $lineno, false, ADMIN);
+	$s = 'Error: ' . $message . ' @' . $lineno;
+	q($s, false, ADMIN);
+	q($s);
         throw new ErrorException($message, 0, $severity, $filename, $lineno);
 }
 
