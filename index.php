@@ -65,14 +65,15 @@ function check($id, $entry, $db, $input) {
 		q('Проект не найден', true);
 	} else {
 		if (!isset($data['title'])) {
+			q($link, false, ADMIN);
 			q('Не удалось получить проект', true);
 		} else {
 			$title = html_entity_decode($data['title']);
-			$mark = $data['totalMark'];
-			if (is_null($mark)) {
+			if (!isset($data['totalMark']) || is_null($data['totalMark'])) {
 				q($title . "\nОценка недоступна");
 			} else {
-				q($title . "\nОценка: *" . $mark . "*\n\n" . getClosing($db));
+				$mark = $data['totalMark'];
+				q($title . "\nОценка: *" . $mark . "*" . "\nДопускается получение 10: *" . ($data['isCanGotMark10'] ? 'Да' : 'Нет') . "*\n\n" . getClosing($db));
 				$s = $db->prepare('REPLACE INTO projects(id, mark, title, author, group_name, course, year, module) VALUES(:id, :mark, :title, :author, :group_name, :course, :year, :module)');
 				$s->bindValue(':id', $id);
 				$s->bindValue(':mark', $mark);
