@@ -60,6 +60,7 @@ function check($id, $entry, $db, $input) {
 		q('Достигнуто максимальное количество проверок. Попробуй снова через час.' . $m, true);
 	}
 	$link = 'https://portfolio.hse.ru/Project/ProjectDataForViewer?userProjectId=' . $id;
+	ini_set('default_socket_timeout', 5);
 	$data = json_decode(file_get_contents($link), true);
 	if ($data == null) {
 		q('Проект не найден', true);
@@ -173,6 +174,8 @@ if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
 }
 define('SENDER', $data['message']['chat']['id']);
 define('TEXT', $data['message']['text']);
+
+//q("Сейчас есть проблемы с подключением. Скоро все решим.", true);
 
 $s = $db->prepare('SELECT * FROM interactions WHERE id = :id');
 $s->bindValue(':id', SENDER);
