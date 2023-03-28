@@ -48,7 +48,7 @@ function qPoll() {
 
 function check($id, $entry, $db, $input) {
 	$checks = $entry[5];
-	if (!is_null($checks) && $checks > 9) {
+	if (!is_null($checks) && $checks > 4 && SENDER != ADMIN) {
 		$s = $db->prepare('SELECT mark FROM projects WHERE id = :id');
 		$s->bindValue(':id', $id);
 		$entry = $s->execute();
