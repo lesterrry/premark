@@ -4,6 +4,8 @@
 
 require __DIR__ . "/secure.php";
 
+define('STATUS_FILE_PATH', '/var/www/html/api/premark/status.txt');
+
 $rec = file_get_contents('php://input');
 $data = json_decode($rec, true);
 //file_put_contents('/var/www/html/api/premark/temp.txt', $rec);
@@ -175,7 +177,9 @@ if (empty($data['message']['chat']['id']) || empty($data['message']['text'])) {
 define('SENDER', $data['message']['chat']['id']);
 define('TEXT', $data['message']['text']);
 
-//q("Сейчас есть проблемы с подключением. Скоро все решим.", true);
+if (file_get_contents(STATUS_FILE_PATH) == 'down' && SENDER != ADMIN) {
+	q("Портфолио упало", true);
+}
 
 $s = $db->prepare('SELECT * FROM interactions WHERE id = :id');
 $s->bindValue(':id', SENDER);
@@ -200,6 +204,12 @@ if (TEXT == '/start') {
 	} else {
 		check($act, $entry, $db, $data);
 	}
+} else if (TEXT == '/putdown' && SENDER == ADMIN) {
+        file_put_contents(STATUS_FILE_PATH, 'down');
+	q('Put down');
+} else if (TEXT == '/putup' && SENDER == ADMIN) {
+        file_put_contents(STATUS_FILE_PATH, 'up');
+	q('Put up');
 } else {
 	$split = explode('/', TEXT);
 	if (count($split) < 2) {
